@@ -1,0 +1,566 @@
+%\VignetteIndexEntry{OOMPA GenAlgo}
+%\VignetteKeywords{OOMPA,Class Prediction,Genetic Algorithm}
+%\VignetteDepends{xtable,ClassDiscovery,GenAlgo}
+%\VignettePackage{GenAlgo}
+\documentclass{article}
+
+\usepackage{hyperref}
+
+\setlength{\topmargin}{0in}
+\setlength{\textheight}{8in}
+\setlength{\textwidth}{6.5in}
+\setlength{\oddsidemargin}{0in}
+\setlength{\evensidemargin}{0in}
+
+\newcommand{\Rfunction}[1]{{\texttt{#1}}}
+\newcommand{\Robject}[1]{{\texttt{#1}}}
+\newcommand{\Rclass}[1]{{\texttt{#1}}}
+\newcommand{\Rpackage}[1]{{\textit{#1}}}
+
+\title{Genetic Algorithms for Feature Selection}
+\author{Kevin R. Coombes}
+
+\begin{document}
+
+\setkeys{Gin}{width=6.5in}
+\maketitle
+\tableofcontents
+
+\section{Introduction}
+
+OOMPA is a suite of object-oriented tools for processing and analyzing
+large biological data sets, such as those arising from mRNA expression
+microarrays or mass spectrometry proteomics.  The
+\Rpackage{ClassPrediction} package in OOMPA provides tools to help
+with the ``class prediction'' problem.  Class prediction is one of the
+three primary types of applications of microarrays described by
+Richard Simon and colleagues.  The point of these problems is to
+select a subset of ``features'' (genes, proteins, etc.) and combine
+them into a fully specified model that can predict the ``outcome'' for
+new samples.  Here ``outcome'' may be a binary classification, a
+continuous variable of interest, or a time-to-event outcome.
+
+Most prediction methods involve (at least) two parts:
+\begin{enumerate}
+\item feature selection: deciding which of the potential predictors
+  (features, genes, proteins, etc.) to include in the model
+\item model optimization: selecting parameters to combine the selected
+  features in a model to make predictions.
+\end{enumerate}
+In this vignette, we illustrate the use of a \textit{genetic
+  algorithm} for feature selection.
+
+\section{Getting Started}
+
+No one will be surprised to learn that we start by loading the package
+into the current R session:
+<<lib>>=
+library(GenAlgo)
+@ 
+We also use some plotting routines from the \Rpackage{ClassDiscovery}
+package. 
+<<cd>>=
+library(ClassDiscovery)
+@ 
+\section{The Generic Genetic Algorithm}
+
+The \Rclass{GenAlg} class in the \Rpackage{GenAlgo} library
+provides generic tools for running a generic algorithm.  Here the
+basic idea is that we have a list of features, and we want to select a
+fixed number, $k$, of those features to include in a predictive model.
+Thus, a candidate solution consists of a vector of length $k$
+containing the indices of the features to be included.  The genetic
+algorithm is initialized by creating a \textit{population} of such
+candidate vectors, and storing it in a \Robject{data} matrix, which is
+passed as the first argument to the \Rfunction{GenAlg} function. After
+supplying all the necessary arguments (as described below) to this
+function, you update the population by calling the
+\Rfunction{newGeneration} function as many times as necessary.  Each
+iteration computes the \textit{fitness} of each candidate solution,
+selects pairs of individuals to \textit{reproduce} (with more fit
+individuals being more likely to reproduce), and generates a new
+population that, on average, is expected to be more ``fit'' than the
+previous population.
+
+The syntax of the \Rfunction{GenAlg} function is as follows:
+<<GenAlg>>=
+args(GenAlg)
+@ 
+
+As just explained, \Robject{data} is the population matrix containing
+individual candidate solutions as its rows.  You must also supply a
+fitness function (\Rfunction{fitfun}) and a mutation function
+(\Rfunction{mutfun}) customized to the current problem.  The
+\Robject{context} argument is a list or data frame that is passed back
+to \Rfunction{fitfun} and \Rfunction{mutfun} to enable them to take
+advantage of any auxiliary information needed for them to perform
+their functions.  The \Robject{pm} argument is the probability that an
+individual ``allele'' in the candidate solutions will mutate in any
+generation; the \Robject{pc} argument is the probability that
+crossover will occur during reproduction.
+
+A common mutation rule for feature selection is that any included
+feature can mutate to any other potential feature. This rule is
+implemented by the following function, assuming that \Robject{context}
+is a data frame with one row per feature.
+<<mutate>>=
+selection.mutate <- function(allele, context) {
+  context <- as.data.frame(context)
+  sample(1:nrow(context),1)
+}
+@ 
+
+\section{The Tour de France 2009 Fantasy Cycling Challenge}
+
+To illustrate the use of the feature-selection genetic algorithm, we
+turn from the world of genes and proteins to the world of professional
+cycling.  As part of its coverage of the 2009 Tour de France, the
+Versus broadcasting network ran a ``fantasy cycling challenge'' on its
+web site.  The (simplified for purposes of our example)
+rules of the challenge were to select nine riders for a fantasy team.
+Each player was given a fixed budget to work with; each rider ``cost''
+a certain amount to include on the fantasy team.  Players could change
+their selections during the first four stages of the tour.  During
+stages~5 through~21, riders finishing in the top $15$ positions were
+awarded points, with higher finishes garnering more points.  Riders in
+the three ``leaders jerseys'' were awarded bonus points.  We have put
+together a data frame containing the cost and scores of all riders who
+scored points for this contest during the 2009 tour. The data set can
+be loaded with the following command; Table~\ref{tour} lists a few of
+the riders, their cost, and total score.
+
+<<tour>>=
+data(tourData09)
+@ 
+<<foo,eval=FALSE,echo=FALSE>>=
+r <- rownames(tourData09)
+s <- enc2utf8(r)
+rownames(tourData09) <- s
+save(tourData09, file="tourData09.rda")
+rm(r,s)
+@ 
+<<echo=FALSE,results=tex>>=
+require(xtable)
+myalign <- "|l|rrrr|"
+tab <- xtable(tourData09[1:15,],
+              caption="",
+              label="tour", align=myalign)
+print(tab)
+@ 
+
+The specific challenge is to select nine riders, at a total cost of at
+most $470$, who achieve the maximum total score.  (Our task is easier
+than that of the participants in the contest, since they had to make
+their selections before knowing the outcome.  With hindsight, we are
+trying to figure out what would have been the best choice.)  Thus, we
+can define the \textit{objective function} (or \textit{fitness
+function}) for the genetic algorithm:
+<<objective>>=
+scores.fitness <- function(arow, context) {
+  ifelse(sum(context$Cost[arow]) > 470,
+         0,
+         sum(context$Total[arow]))
+}
+@ 
+This objective function, \Rfunction{scores.fitness}, illustrates some
+conventions of the \Rclass{GenAlg} class.  First, the fitness function
+is always called with two arguments.  The first argument,
+\Robject{arow}, is a vector of integers representing indices into the
+list of features being selected.  In the present case, these represent
+indices into the \Robject{tourData09} data frame, and thus correspond
+to cyclists being considered for inclusion on the ultimate fantasy
+team.  The second argument, \Robject{context}, is a list (or data
+frame) containing whatever auxiliary data is needed to evaluate the
+fitness of this candidate team.  When we actually initialize the
+\Rfunction{GenAlg} function, we will pass the \Robject{tourData09}
+data frame in as the \Robject{context} argument.  In our problem, any
+team that costs more than $470$ is invalid, and so it is given a
+fitness of $0$.  Otherwise, the fitness of the team is the cumulative
+total score that its riders achieved in the 2009 Tour de France.
+@ 
+
+Now we can initialize a starting population for the genetic
+algorithm.  We will (arbitrarily) start with a population of $200$
+individual candidate solutions.
+<<setup0>>=
+set.seed(821813)
+n.individuals <- 200
+n.features <- 9
+y <- matrix(0, n.individuals, n.features)
+for (i in 1:n.individuals) {
+  y[i,] <- sample(1:nrow(tourData09), n.features)
+}
+@ 
+We are finally ready to initialize the genetic algorithm:
+<<my.ga>>=
+my.ga <- GenAlg(y, scores.fitness, selection.mutate, tourData09, 0.001, 0.75)
+@ 
+The \Rfunction{summary} method reports the distribution of ``fitness'' scores:
+<<summ>>=
+summary(my.ga)
+@ 
+
+Now we can advance to the second generation:
+<<newGen>>=
+my.ga <- newGeneration(my.ga)
+summary(my.ga)
+@ 
+%Notice that both the mean and the maximum fitness have increased.
+Notice that the mean, but not the maximum fitness, has increased.
+
+Now we can advance through $100$ generations:
+<<go100>>=
+for (i in 1:100) {
+  my.ga <- newGeneration(my.ga)
+}
+summary(my.ga)
+@ 
+
+We can access the ``best'' fitness or the complete fitness vector from
+appropriate slots in the \Rclass{GenAlg} object, \Robject{my.ga}.
+<<slots>>=
+my.ga@best.fit
+mean(my.ga@fitness)
+@ 
+Since we also know which ``individual'' feature set gives the best
+score in this generation, we can retrieve it and get a list of cyclists
+for a pretty good fantasy team (Table~\ref{good}).
+<<bestFound>>=
+bestFound <- tourData09[my.ga@best.individual,]
+bestFound <- bestFound[rev(order(bestFound$Total)),]
+@ 
+
+<<tab,echo=FALSE,results=tex>>=
+tab <- xtable(bestFound,
+              caption="Best team found by a small genetic algorithm",
+              label="good",
+              align=myalign)
+tab
+@ 
+
+\section{Convergence}
+
+How can we tell if the answer found by the genetic algorithm is really
+the best possible? Actually, in the present instance, we know that the
+answer found in our limited application of the genetic algorithm is
+\textbf{not} the best possible. The winner of the Versus fantasy
+cycling challenge in 2009 scored $3,515$ points, which is more than
+the best solution we have found so far.
+
+
+To explore the solution space more completely, we re-ran the genetic
+algorithm using a starting population of $1000$ individuals (instead
+of the $200$ used above).  We let the solutions evolve through $1100$
+generations (instead of just $100$). In order to allow this vignette
+to be produced in a timely fashion, we write down (but do not
+evaluate) the code to run the genetic algorithm in this way:
+<<eval=FALSE>>=
+set.seed(274355)
+n.individuals <- 1000
+n.features <- 9
+y <- matrix(0, n.individuals, n.features)
+for (i in 1:n.individuals) {
+  y[i,] <- sample(1:nrow(tourData09), n.features)
+}
+my.ga <- GenAlg(y, scores.fitness, selection.mutate, tourData09, 0.001, 0.75)
+
+# for each generation, we will save the results to a file
+output <- 'Generations'
+if (!file.exists(output)) dir.create(output)
+
+# save the starting generation
+recurse <- my.ga
+filename <- file.path(output,"gen0000.txt")
+assign('junk', as.data.frame(recurse), env=.GlobalEnv, immediate=T)
+write.csv(junk, file=filename)
+
+# iterate
+n.generations <- 1100
+diversity <- meanfit <- fitter <- rep(NA, n.generations)
+for (i in 1:n.generations) {
+  base <- ''
+  if (i < 1000) { base <- '0' }
+  if (i < 100) { base <- '00' }
+  if (i < 10) { base <- '000' }
+  filename <- file.path(output, paste("gen", base, i, '.txt', sep=''))
+  recurse <- newGeneration(recurse)
+  fitter[i] <- recurse@best.fit
+  meanfit[i] <- mean(recurse@fitness)
+  diversity[i] <- popDiversity(recurse)
+  cat(paste(filename, "\n"))
+  assign('junk', as.data.frame(recurse), env=.GlobalEnv, immediate=T)
+  write.csv(junk, file=filename)
+}
+
+save(fitter, meanfit, recurse, diversity, file="gaTourResults.rda")
+@ 
+Instead, we load the saved results.
+<<load>>=
+data(gaTourResults)
+@ 
+
+In Figure~\ref{gens}, we plot the best fitness and the mean fitness as
+a function of the number of generations through which the genetic
+algorithm has been allowed to evolve.  The maximum score that we ever
+achieve is \Sexpr{max(fitter)}, and the fantasy cycling team that
+gives this score is shown in Table~\ref{final}.
+<<bestFound>>=
+newBest <- tourData09[recurse@best.individual,]
+newBest <- newBest[rev(order(newBest$Total)),]
+@ 
+<<tab,echo=FALSE,results=tex>>=
+tab <- xtable(newBest,
+              caption="Best team found by an extensive genetic algorithm",
+              label="final",
+              align=myalign)
+print(tab)
+@ 
+
+In this case, we can \textit{prove} that this team yields the optimal
+score. The selected team includes $9$ of the $11$ highest scoring
+individual cyclists in the 2009 Tour de France.  The two omitted
+cyclists are Oscar Freire (cost $= 82$; total = $369$) and Andy
+Schleck (cost $=68$; total = $358$.  Replacing one of the three
+cyclists on the selected team with lower scores than these two riders
+would increase the cost above the cap of $470$, and so no single
+change can improve the score.  We also consider the possibility of
+replacing the two lowest scoring cyclists on the best selected team
+with one of these high scorers and one other cyclist.  Since the two
+lowest scoring cyclists have a combined cost of $48+16=64$ and the
+total cost for the best team is $455 = 470-15$, we would need to find
+two replacements whose combined cost is at most $64+15 = 79$.  Since
+the cost to include Oscar Freire already exceeds this cap, we must
+find another cyclist to pair with Andy Schleck.  So, the cost is
+bounded by $79-68=11$, while the total score must exceed $329 + 325 -
+358 = 296$.  But there are no riders in the database meeting these
+conditions.
+
+\subsection{Lessons for Fantasy Cylists}
+
+The ``ultimate'' fantasy cycling team for the 2009 Tour de France, as
+shown in Table~\ref{final}, leads to several conclusions for how to
+pick a team for this competition.  First, the team should be heavily
+weighted toward sprinters.  Most of the 20 teams in the 2009 tour had
+one sprinter among their nine riders; the fantasy team has five
+sprinters (Hushovd, Cavendish, Ciolek, Rojas, and Farrar) out of nine.
+Second, riders who wear leaders jerseys are valuable.  During the 2009
+tour, three riders wore the ``yellow jersey'' for the overall leader:
+Fabian Cancellara, Rinaldo Nocentini, and Alberto Contador; two of
+those three are on the best fantasy team.  The 'green jersey'' for
+most consistent rider was shared by Mark Cavendish and Thor Hushovd,
+both on the best fantasy team.  The ``polka dot jersey'' for best
+rider in the mountains was worn for nine stages by Franco Pellizotti.
+The final lesson is to avoid ``breakaway'' specialists in favor of
+riders who can win sprints or place high in the ``general
+classification'' for overall best time.  Riders who win breakaways
+are not likely to score well in more than one stage in a tour; that
+does not provide enough points to put them among the overall
+leaders. (The exception here is Rinaldo Nocentini, whose one breakaway
+win put him in the yellow jersey lead for eight days.)
+
+\subsection{Lessons for Convergence of Genetic Algorithms}
+
+
+Based on Figure~\ref{gens}, the optimal score is first achieved around
+generation $400$. However, the population temporarily evolves away
+from this score at about generation $630$, but then comes back.
+Interestingly, however, the mean fitness decreases for a period even
+after the maximum appears to stabilize.  Taken as a whole, this figure
+suggests that neither tracking the maximum nor the mean fitness, by
+themselves, gives a reliable measure of the convergence of the genetic
+algorithm.  Note, by the way, that simple mutations (which replace one
+feature with another) can have a large effect on the fitness, and thus
+can have a strong influence on the mean.
+\begin{figure}
+<<fig=TRUE,echo=FALSE>>=
+plot(fitter, type='l', ylim=c(1000,4000), xlab="Generation", ylab="Fitness")
+abline(h=max(fitter), col='gray', lty=2)
+lines(fitter)
+lines(meanfit, col='gray')
+points(meanfit,
+     pch=16, cex=0.4, col=jetColors(1100))
+legend(800, 2500, c("Maximum", "Mean"), col=c("black", "blue"), lwd=2)
+@ 
+\caption{Maximum and mean fitness found in each generation.}
+\label{gens}
+\end{figure}
+
+One possibility is to look at smoothed changes in the mean and maximum
+fitness.  The next commands use the \Rfunction{loess} function to fit
+a smooth approximation to the changing values of the mean and maximum
+fitness per generation.  A scatter plot of these smooth curves is
+displayed in Figure~\ref{smooth}.  This figure suggests that, at about
+generation 800, the best fitness stops changing, while the mean
+fitness continues to increase slowly.  It also suggests that most of
+the gain in finding the optimal solution occurred in the first $300$ to
+$400$ generations.
+<<loess>>=
+n.generations <- length(meanfit)
+index <- 1:n.generations
+lo <- loess(meanfit ~ index, span=0.08)
+lof <- loess(fitter ~ index, span=0.08)
+@ 
+
+\begin{figure}
+<<fig=TRUE,echo=FALSE>>=
+plot(meanfit, fitter, xlab="Smoothed Mean Fit", ylab="Smoothed Best Fit",
+     col='gray', type='l')
+points(lo$fitted, lof$fitted, 
+     pch=16, cex=0.4, col=jetColors(1100))
+points(2901:4000, rep(2800,1100), pch=16, cex=0.4, col=jetColors(1100))
+text(3450, 2850, "Legend (Generation)")
+text(seq(2900, 4100, length=5), rep(2770, 5), seq(0, 1200, by=300), cex=0.8)
+@ 
+\caption{Relationship between the mean and maximum fitness in a
+  population of potential solutions as the generations evolve.  Gray
+  curve tracks the complete fluctuations; colored dots follow the
+  smoothed curves, with colors the same as in Figure~\ref{gens}.}
+\label{smooth}
+\end{figure}
+
+An alternative is to measure the ``diversity'' of the population.  We
+define the ``distance'' between two individuals in the population to
+be the number of alleles that are different.  In other words, we count
+the number of different features that the two candidate solutions
+would select.  This measure of distance defines an
+\textit{ultrametric} on the space of candidate feature selection
+solutions, analogous to the Hamming distance between binary strings.
+We define the diversity of the population to be the average of the
+distance between all pairs of individuals.  This measure of diversity
+is implemented in the \Rfunction{popDiversity} function in the
+\Rpackage{GenAlgo} package; we used this function above when
+evolving the population with the genetic algorithm.
+
+\begin{figure}
+<<fig=TRUE,echo=FALSE,width=8,height=7>>=
+opar <- par(mai=c(1, 1, 0.2, 1))
+plot(fitter, type='l', xlab="Generation", ylab="Fitness")
+text(900, 3950, "Best")
+mcol <- "#888888"
+lines(meanfit, col=mcol)
+text(900, 3700, "Mean", col=mcol)
+par(new=T)
+par(mai=c(1, 1, 0.2, 1))
+plot(diversity, col='gray', type='l', ylim=c(0,9), xlab='', ylab='', yaxt='n')
+points(diversity, pch=16, cex=0.4, col=jetColors(1100))
+mycol <- "#ff4400"
+mtext("Average Diversity", side=4, line=2, col=mycol)
+text(900, 2, "Diversity", col=mycol)
+axis(4, col=mycol, col.ticks=mycol, col.axis=mycol, lwd=2)
+abline(h=c(1, 1.25, 1.5), col="#00ddff")#col="#ff7700")
+par(opar)
+@ 
+\caption{Overlay of the average diversity (color) on plots of the best
+  (black) and mean (gray) fitness through the generations of the
+  genetic algorithm.  Horizontal (cyan) lines are located at a
+  diversity of $1$, $1.25$, and $1.5$.}
+\label{diver}
+\end{figure}
+
+Figure~\ref{diver} overlays the diversity on a plot of the best and
+mean fitnesses.  We note first that the average diversity appears to
+be negatively correlated with the mean fitness.:
+<<cor>>=
+cor(diversity, meanfit)
+cor(diversity, meanfit, method='spearman')
+@ 
+
+This strong correlation suggests that we might be able to use the mean
+fitness to draw conclusions about whether the algorithm has converged.
+One reason to prefer the diversity, however, is that it is more
+interpretable.  For instance, we note that the diversity starts in
+generation zero at a value between eight and nine.  This observation
+makes sense; two sets of nine riders selected randomly from among the
+$102$ riders who scored points in the 2009 tour challenge should
+almost never have more than one overlap.  At the point where we first
+reach the best solution, the average diversity falls to about $2$,
+showing that most pairs of solutions have seven riders in common.
+However, the diversity is near $1.5$ during the period when the best
+solution temporarily drifts away from the optimum.  During the final
+phase, however, the diversity drops below $1.25$ and stays near that
+level, suggesting that this might provide a reasonable criterion for
+convergence.  An additional measure that might be applied when the
+diversity starts to fall into this range is to compute the number of
+individuals in the population that are identical to the best solution: 
+<<ident>>=
+temp <- apply(recurse@data, 1, function(x, y) {
+  all(sort(x)==sort(y))
+}, recurse@best.individual)
+sum(temp)
+@ 
+In this case, the best solution is represented by \Sexpr{sum(temp)}
+of the \Sexpr{nrow(recurse@data)} individual candidates.
+
+
+\section{Implications for Gene Expression Signatures}
+
+The example presented here has some important implications for
+applying feature selection to develop gene expression signatures to
+predict useful clinical outcomes.  The most significant issues relate
+to the problem of convergence.  The cycling example is likely to be
+easier than the gene expression problem, since there are only $102$
+``cycling-features'' (i.e., riders) while there may be several
+thousand gene-features.  In order to search adequately through the
+sample space, we needed a population of $1000$ individuals evolved
+through about $1000$ generations.  (Even though that means we
+evaluated up to $1,000,000$ candidate solutions, this is still a small
+number compared to the $2\times10^{12}$ ways to choose nine riders
+from a list of $102$.)  Unless some preliminary filtering is performed
+to reduce the number of genes, it will probably take a much larger
+population and many more generations to search through gene-space for
+useful predictive features.
+
+We do expect, however, that the ``diversity'' will prove useful to
+monitor convergence even in the gene expression setting.  As mentioned
+earlier, diversity has the advantage of providing an interpretable
+condition for convergence, which does not need to know the ``fitness''
+of the optimal solution in advance.  By contrast, we know that the
+fitness function must will be different in the gene expression case
+from the fitness function used for the fantasy cycling challenge.  The
+underlying difficulty is that we do not have as clear an objective
+score.  Instead, we can start by considering the problem of selecting
+features in order to classify samples into two different groups.  If
+we use something like linear discriminant analysis (LDA), or an
+equivalent linear model, to separate the groups, then a natural
+measure of the fitness of a set of gene-features is the distance
+between the centers of the two groups in the resulting multivariate
+space.  This measure is known as the Mahalanobis distance, and is
+implemented by the \Rfunction{maha} function in the
+\Rpackage{GenAlgo} package.  A fitness function that is
+adequate for use in the constructor of a \Rclass{GenAlg} object is
+then provided by the function:
+<<mahafit>>=
+mahaFitness <- function(arow, context) {
+  maha(t(context$dataset[arow,]), context$gps, method='var')
+}
+@ 
+where the appropriate \Robject{context} object consists of a list
+containing the gene expression dataset and a vector identifying the
+two groups.
+
+
+<<echo=FALSE,eval=FALSE>>=
+########################################################################
+# Now we instantiate the specific genetic algorithm described in the
+# previous section.
+
+tourData09 <- read.csv("tourResults.csv", row.names=1)
+tourData09$Total <- tourData09$Scores + tourData09$JerseyBonus
+tourData09 <- tourData09[rev(order(tourData09$Total)),]
+tourData09 <- tourData09[, c("Cost", "Scores", "JerseyBonus", "Total")]
+
+########################################################################
+
+if(FALSE) {
+opar <- par(mfrow=c(2,1))
+spikes <- recurse@best.individual
+print(recurse@best.fit)
+plot(recurse@fitness, ylim=c(0, 4000))
+abline(h=median(recurse@fitness))
+hist(recurse@data, nclass=33)
+par(opar)
+
+}
+@ 
+
+\end{document}

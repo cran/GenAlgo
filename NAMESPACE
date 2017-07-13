@@ -1,0 +1,24 @@
+# various generics
+import(methods)
+import(ClassDiscovery)
+import(MASS)
+
+importFrom("stats", "runif", "var")
+
+importMethodsFrom(oompaBase,
+                  "hist", "image", "plot")
+importMethodsFrom(oompaBase,
+                  "print", "summary", "as.data.frame")
+
+exportMethods("hist", "image", "plot")
+exportMethods("summary", "as.data.frame", "as.matrix")
+
+# cp00-utility
+export("maha")
+
+# cp01-genalg
+#export("crossover", "selectPair", "removeDuplicates")
+exportClasses("GenAlg")
+export("GenAlg", "newGeneration", "popDiversity")
+export("simpleMutate", "selectionFitness", "selectionMutate")
+

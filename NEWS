@@ -1,0 +1,62 @@
+			Dear Emacs, please make this -*-Text-*- mode!
+	**************************************************
+	*						 *
+	*	       2.1 SERIES NEWS			 *
+	*						 *
+	**************************************************
+
+
+		CHANGES IN R VERSION 2.1.0
+
+ADMINISTRATIVE
+
+    o	Changed LICENSE to Apache 2.0
+
+		CHANGES IN R VERSION 2.0.1
+
+BUG FIXES
+
+    o	Made compatible with new R check steps that verify DESCRIPTION
+        and NAMESPACE dependencies.
+
+
+		CHANGES IN R VERSION 2.0.0
+
+REFACTOR
+
+    o	Removed depence on PreProcess.
+
+
+		CHANGES IN R VERSION 1.0.3
+
+RENAME!
+
+    o	Changed package name from GenAlg to GenAlgo to avoid a
+    conflict with an existing CRAN package.
+
+
+		CHANGES IN R VERSION 1.0.2
+
+BUG FIXES
+
+    o	Lots of documentation updates.
+
+
+		CHANGES IN R VERSION 1.0.1
+
+BUG FIXES
+
+    o	No clue...
+
+
+		CHANGES IN R VERSION 1.0.0
+
+NEW FEATURES
+
+    o	Brand new packaging: split out from the ClassPrediction
+    package, which is being restructured as a poor man's bundle
+    (i.e., no code, just some "depends" rules).
+
+
+
+
