@@ -79,16 +79,16 @@ removeDuplicates <- function(arow, mf, context) {
 # critical routine when you iterate the generate algorithm to process several
 # generations.
 setClass("GenAlg",
-         representation(data="matrix",
-                        fitfun="function",
-                        mutfun="function",
-                        p.mutation="numeric",
-                        p.crossover="numeric",
-                        generation="numeric",
-                        fitness="numeric",
-                        best.fit="numeric",
-                        best.individual="matrix",
-                        context="list"))
+         slots = c(data="matrix",
+                   fitfun="function",
+                   mutfun="function",
+                   p.mutation="numeric",
+                   p.crossover="numeric",
+                   generation="numeric",
+                   fitness="numeric",
+                   best.fit="numeric",
+                   best.individual="matrix",
+                   context="list"))
 
 GenAlg <- function(data, fitfun, mutfun, context, pm=0.001, pc=0.50, gen=1) {
   fitness <- apply(data, 1, fitfun, context=context)

@@ -6,6 +6,16 @@
 	**************************************************
 
 
+		CHANGES IN R VERSION 2.1.4
+
+UPDATES
+
+    o	Changed use of S4 classes to avoid deprecated and discouraged
+        elements.
+
+    o	Added a new vignette describing the potential application to
+        feature selection. 
+
 		CHANGES IN R VERSION 2.1.0
 
 ADMINISTRATIVE
