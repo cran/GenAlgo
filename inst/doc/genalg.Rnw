@@ -2,6 +2,8 @@
 %\VignetteKeywords{OOMPA,Class Prediction,Genetic Algorithm}
 %\VignetteDepends{xtable,ClassDiscovery,GenAlgo}
 %\VignettePackage{GenAlgo}
+%\VignetteEncoding{UTF-8}
+%\UseRawInputEncoding
 \documentclass{article}
 
 \usepackage{hyperref}

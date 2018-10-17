@@ -1,4 +1,5 @@
 ### R code from vignette source 'genalg.Rnw'
+### Encoding: ISO8859-1
 
 ###################################################
 ### code chunk number 1: lib
@@ -44,7 +45,7 @@ data(tourData09)
 
 
 ###################################################
-### code chunk number 7: genalg.Rnw:142-148
+### code chunk number 7: genalg.Rnw:144-150
 ###################################################
 require(xtable)
 myalign <- "|l|rrrr|"
@@ -129,7 +130,7 @@ tab
 
 
 ###################################################
-### code chunk number 17: genalg.Rnw:257-295 (eval = FALSE)
+### code chunk number 17: genalg.Rnw:259-297 (eval = FALSE)
 ###################################################
 ## set.seed(274355)
 ## n.individuals <- 1000
@@ -195,7 +196,7 @@ print(tab)
 
 
 ###################################################
-### code chunk number 21: genalg.Rnw:375-382
+### code chunk number 21: genalg.Rnw:377-384
 ###################################################
 plot(fitter, type='l', ylim=c(1000,4000), xlab="Generation", ylab="Fitness")
 abline(h=max(fitter), col='gray', lty=2)
@@ -216,7 +217,7 @@ lof <- loess(fitter ~ index, span=0.08)
 
 
 ###################################################
-### code chunk number 23: genalg.Rnw:405-412
+### code chunk number 23: genalg.Rnw:407-414
 ###################################################
 plot(meanfit, fitter, xlab="Smoothed Mean Fit", ylab="Smoothed Best Fit",
      col='gray', type='l')
@@ -228,7 +229,7 @@ text(seq(2900, 4100, length=5), rep(2770, 5), seq(0, 1200, by=300), cex=0.8)
 
 
 ###################################################
-### code chunk number 24: genalg.Rnw:435-451
+### code chunk number 24: genalg.Rnw:437-453
 ###################################################
 opar <- par(mai=c(1, 1, 0.2, 1))
 plot(fitter, type='l', xlab="Generation", ylab="Fitness")
@@ -273,7 +274,7 @@ mahaFitness <- function(arow, context) {
 
 
 ###################################################
-### code chunk number 28: genalg.Rnw:542-563 (eval = FALSE)
+### code chunk number 28: genalg.Rnw:544-565 (eval = FALSE)
 ###################################################
 ## ########################################################################
 ## # Now we instantiate the specific genetic algorithm described in the

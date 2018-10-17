@@ -6,15 +6,15 @@
 	**************************************************
 
 
-		CHANGES IN R VERSION 2.1.4
+		CHANGES IN R VERSION 2.1.5
 
-UPDATES
+MAINTENANCE
 
-    o	Changed use of S4 classes to avoid deprecated and discouraged
-        elements.
-
-    o	Added a new vignette describing the potential application to
-        feature selection. 
+    o	Cleaned up Depends, Imports and Suggests.
+    o	Fixed NAMESPACE issues.
+    o	Updated man pages and vignette.
+    o	Fixed encoding issues with te vignette, which includes
+        non-ASCII UTF-8 characters (in people's names).
 
 		CHANGES IN R VERSION 2.1.0
 
