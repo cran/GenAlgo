@@ -79,16 +79,16 @@ removeDuplicates <- function(arow, mf, context) {
 # critical routine when you iterate the generate algorithm to process several
 # generations.
 setClass("GenAlg",
-         representation(data="matrix",
-                        fitfun="function",
-                        mutfun="function",
-                        p.mutation="numeric",
-                        p.crossover="numeric",
-                        generation="numeric",
-                        fitness="numeric",
-                        best.fit="numeric",
-                        best.individual="matrix",
-                        context="list"))
+         slots = c(data="matrix",
+                   fitfun="function",
+                   mutfun="function",
+                   p.mutation="numeric",
+                   p.crossover="numeric",
+                   generation="numeric",
+                   fitness="numeric",
+                   best.fit="numeric",
+                   best.individual="matrix",
+                   context="list"))
 
 GenAlg <- function(data, fitfun, mutfun, context, pm=0.001, pc=0.50, gen=1) {
   fitness <- apply(data, 1, fitfun, context=context)
@@ -149,6 +149,12 @@ setMethod("as.matrix", signature(x="GenAlg"),
 	as.matrix(as.data.frame(x))
 })
 
+## old version. Idea is to count, for each pair of feature selectors,
+## the number of "new" features in the second selector. Then this value
+## averaged. The double loop (well, sapply in a for loop) has been
+## identified as a bottleneck when trying to compute diveristy in a loop.
+## tests show it can be speeded up be a factor of about 6 by vectorizing
+## (matrifying?) the computation.
 popDiv <- function(x) {
   N <- nrow(x)
   ndiff <- 0
@@ -161,8 +167,17 @@ popDiv <- function(x) {
   ndiff/(N*(N-1)/2)  
 }
 
+## Vectorized version.
+pd <- function(x) {
+  N <- nrow(x)
+  Z <- matrix(0, ncol = max(x), nrow = N)
+  for (I in 1:N) Z[I, x[I,]] <- 1
+  W <- ncol(x) - (Z %*% t(Z))
+  sum(W[upper.tri(W)])/(N * (N-1) / 2)
+}
+
 popDiversity <- function(ga) {
-  popDiv(ga@data)
+  pd(ga@data)
 }
 
 ########################################################################

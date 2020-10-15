@@ -1,10 +1,23 @@
 			Dear Emacs, please make this -*-Text-*- mode!
 	**************************************************
 	*						 *
-	*	       2.1 SERIES NEWS			 *
+	*	       2.2 SERIES NEWS			 *
 	*						 *
 	**************************************************
 
+
+		CHANGES IN R VERSION 2.2.0
+
+IMPROVEMENTS
+
+    o	Speeded up the computation of population diversity by a
+        factor of about 6 by vectorizing the code.
+
+		CHANGES IN R VERSION 2.1.6
+
+NEW FEATURES
+
+    o	Added a new vignette on feature selection.
 
 		CHANGES IN R VERSION 2.1.5
 
