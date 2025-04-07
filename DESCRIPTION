@@ -1,11 +1,11 @@
 Package: GenAlgo
-Version: 2.2.0
-Date: 2020-10-13
+Version: 2.2.1
+Date: 2025-04-07
 Title: Classes and Methods to Use Genetic Algorithms for Feature
         Selection
-Author: Kevin R. Coombes
-Maintainer: Kevin R. Coombes <krc@silicovore.com>
-Depends: R (>= 3.0)
+Authors@R: person(given = c("Kevin", "R."), family = "Coombes",
+                  role = c("aut", "cre"), email = "krc@silicovore.com")
+Depends: R (>= 4.4)
 Imports: methods, stats, MASS, oompaBase (>= 3.0.1), ClassDiscovery
 Suggests: Biobase, xtable
 Description: Defines classes and methods that can be used
@@ -18,6 +18,8 @@ LazyLoad: yes
 biocViews: Microarray, Clustering
 URL: http://oompa.r-forge.r-project.org/
 NeedsCompilation: no
-Packaged: 2020-10-15 15:15:55 UTC; KRC
+Packaged: 2025-04-07 20:04:12 UTC; kevin
+Author: Kevin R. Coombes [aut, cre]
+Maintainer: Kevin R. Coombes <krc@silicovore.com>
 Repository: CRAN
-Date/Publication: 2020-10-15 17:40:03 UTC
+Date/Publication: 2025-04-07 21:00:02 UTC

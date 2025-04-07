@@ -21,7 +21,7 @@ maha(data, groups, method = "mve")
     A character string determining the method that should be used to
     estimate the covariance matrix. The default value of "\code{mve}"
     uses the \link[MASS]{cov.mve} function from the MASS package. The
-    other valid option is "var", which uses the \code{\link{var}}
+    other valid option is "var", which uses the \code{\link[stats]{var}}
     function from the standard \code{stats} package.}
 }
 \details{
